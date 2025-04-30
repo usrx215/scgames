@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <link rel="icon" type="image/x-icon" href="scgamesicon.png">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: darkgrey;
+        }
+        #game-container {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            grid-template-rows: repeat(10, 40px);
+            gap: 2px;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            background-color: darkgrey;
+            border: 1px solid #ccc;
+        }
+        .wall {
+            background-color: black;
+        }
+        .start {
+            background-color: green;
+        }
+        .end {
+            background-color: red;
+        }
+        .player {
+            background-color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <script>
+        const gameContainer = document.getElementById("game-container");
+
+        const mazes = [
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1, 1, 0, 1, 0, 1],
+                [1, 0, 1, 1, 0, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 1, 1, 1, 0, 1],
+                [1, 1, 0, 1, 0, 0, 0, 1, 0, 1],
+                [1, 0, 0, 0, 1, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1, 0, 1, 1, 1, 1],
+                [1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 1, 1, 1, 0, 0, 1, 0, 1, 1],
+                [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 0, 0, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 0, 0, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 1, 0, 1, 1],
+                [1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 1, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ]
+        ];
+
+        let currentLevel = 0;
+        let playerPosition = { x: 1, y: 1 };
+
+        function createMaze() {
+            gameContainer.innerHTML = "";
+            const maze = mazes[currentLevel];
+            maze.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    const div = document.createElement("div");
+                    div.classList.add("cell");
+
+                    if (cell === 1) div.classList.add("wall");
+                    if (x === 1 && y === 1) div.classList.add("start");
+                    if (x === 8 && y === 8) div.classList.add("end");
+                    if (x === playerPosition.x && y === playerPosition.y) div.classList.add("player");
+
+                    gameContainer.appendChild(div);
+                });
+            });
+        }
+
+        function movePlayer(dx, dy) {
+            const maze = mazes[currentLevel];
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+
+            if (maze[newY] && maze[newY][newX] === 0) {
+                playerPosition.x = newX;
+                playerPosition.y = newY;
+
+                createMaze();
+
+                if (newX === 8 && newY === 8) {
+                    setTimeout(() => {
+                        alert("You Win! Moving to next level.");
+                        currentLevel++;
+                        if (currentLevel < mazes.length) {
+                            playerPosition = { x: 1, y: 1 };
+                            createMaze();
+                        } else {
+                            alert("Congratulations! You've completed all levels.");
+                        }
+                    }, 10);
+                }
+            }
+        }
+
+        document.addEventListener("keydown", (e) => {
+            switch (e.key) {
+                case "ArrowUp":
+                    movePlayer(0, -1);
+                    break;
+                case "ArrowDown":
+                    movePlayer(0, 1);
+                    break;
+                case "ArrowLeft":
+                    movePlayer(-1, 0);
+                    break;
+                case "ArrowRight":
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        createMaze();
+    </script>
+</body>
+</html>
