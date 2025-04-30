@@ -1,0 +1,250 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XRhythm</title>
+    <link rel="icon" type="image/x-icon" href="scgamesicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Ubuntu', Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            overflow: hidden;
+        }
+        h1 {
+          text-align: center;
+          margin-top: 100px;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #000;
+            border: 2px solid #fff;
+        }
+
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        #rank {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>XRhythm</h1>
+    <div id="score">Score: 0</div>
+    <div id="rank">Rank: F</div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: red;"></div>
+            <span>Left</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: blue;"></div>
+            <span>Down</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: green;"></div>
+            <span>Up</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: yellow;"></div>
+            <span>Right</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const arrows = ['ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight'];
+        const arrowColors = {
+            ArrowLeft: 'red',
+            ArrowDown: 'blue',
+            ArrowUp: 'green',
+            ArrowRight: 'yellow'
+        };
+
+        let activeNotes = [];
+        let score = 0;
+        let maxPossibleScore = 0;
+        let rank = "F";
+
+        const gameArea = {
+            width: canvas.width,
+            height: canvas.height
+        };
+
+        const noteSize = 100;
+        const targetLine = gameArea.height - 100;
+
+        const song = new Audio('https://download1327.mediafire.com/gvjo9pcfvtsg6nbWHcQ7tjQjhXXkLt-4BytoLHoQz2XVIleZKfGXQWM5zg_rCkcVu1zvkNZ1wX5JLn5qbBePriD0oT4S-rpQqlTG8DKsSPqBdB11_jhil7Uzh3R1q2WVl7R5nrHunp59DsWhsPQjQTzzD18lrVuhTpT4YMvM4k9K9g/ii02a1asi90ryp6/toby+fox+-+UNDERTALE+Soundtrack+-+100+MEGALOVANIA.mp3'); // Replace with the path to your song
+        const songNotes = [
+            { time: 500, key: 'ArrowLeft' },
+            { time: 1000, key: 'ArrowDown' },
+            { time: 1500, key: 'ArrowUp' },
+            { time: 2000, key: 'ArrowRight' },
+            { time: 2500, key: 'ArrowLeft' },
+            { time: 3000, key: 'ArrowDown' },
+            { time: 3500, key: 'ArrowUp' },
+            { time: 4000, key: 'ArrowRight' },
+            { time: 4500, key: 'ArrowLeft' },
+            { time: 5000, key: 'ArrowDown' },
+            { time: 5500, key: 'ArrowUp' },
+            { time: 6000, key: 'ArrowRight' },
+        ];
+
+        maxPossibleScore = songNotes.length * 10;
+
+        let songStartTime = null;
+
+        function createNoteAtTime(note) {
+            activeNotes.push({
+                key: note.key,
+                x: arrows.indexOf(note.key) * 200 + 100,
+                y: -noteSize
+            });
+        }
+
+        function drawNotes() {
+            ctx.clearRect(0, 0, gameArea.width, gameArea.height);
+
+            activeNotes.forEach(note => {
+                ctx.fillStyle = arrowColors[note.key];
+                ctx.fillRect(note.x, note.y, noteSize, noteSize);
+            });
+
+            ctx.strokeStyle = 'white';
+            ctx.beginPath();
+            ctx.moveTo(0, targetLine);
+            ctx.lineTo(gameArea.width, targetLine);
+            ctx.stroke();
+        }
+
+        function updateNotes() {
+            activeNotes.forEach(note => {
+                note.y += 5;
+            });
+
+            activeNotes = activeNotes.filter(note => note.y < gameArea.height);
+        }
+
+        function updateRank() {
+            const percentage = (score / maxPossibleScore) * 100;
+
+            if (percentage === 100) {
+                rank = "S";
+            } else if (percentage >= 90) {
+                rank = "A";
+            } else if (percentage >= 80) {
+                rank = "B";
+            } else if (percentage >= 60) {
+                rank = "C";
+            } else if (percentage >= 40) {
+                rank = "D";
+            } else {
+                rank = "F";
+            }
+
+            document.getElementById('rank').innerText = `Rank: ${rank}`;
+        }
+
+        function checkHit(key) {
+            let hit = false;
+
+            for (let i = 0; i < activeNotes.length; i++) {
+                const note = activeNotes[i];
+                if (note.key === key && Math.abs(note.y - targetLine) <= noteSize) {
+                    score += 10;
+                    document.getElementById('score').innerText = `Score: ${score}`;
+                    activeNotes.splice(i, 1);
+                    hit = true;
+                    break;
+                }
+            }
+
+            if (!hit) {
+                if (score > 0) {
+                    score -= 10;
+                }
+                document.getElementById('score').innerText = `Score: ${score}`;
+            }
+
+            updateRank();
+        }
+
+        document.addEventListener('keydown', event => {
+            if (arrows.includes(event.key)) {
+                checkHit(event.key);
+            } else {
+                if (score > 0) {
+                    score -= 10;
+                }
+                document.getElementById('score').innerText = `Score: ${score}`;
+                updateRank();
+            }
+        });
+
+        function gameLoop(timestamp) {
+            if (!songStartTime) {
+                songStartTime = timestamp;
+                song.play();
+            }
+
+            const elapsedTime = timestamp - songStartTime;
+
+            songNotes.forEach(note => {
+                if (note.time <= elapsedTime && !note.spawned) {
+                    createNoteAtTime(note);
+                    note.spawned = true; // Mark note as spawned
+                }
+            });
+
+            drawNotes();
+            updateNotes();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
