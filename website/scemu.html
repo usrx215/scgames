@@ -1,0 +1,183 @@
+<html>
+  <head>
+    <title>SCEmu - Powered by EmulatorJS</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+        background-color: #111;
+      }
+      #controls {
+        padding: 10px;
+        background-color: #222;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        color: #fff;
+      }
+      #game {
+        width: 100%;
+        height: calc(100vh - 60px);
+        border: 2px dashed transparent;
+        transition: border 0.3s;
+      }
+      #game.drag-over {
+        border: 2px dashed #20b2aa;
+        background-color: #e0ffff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <label>
+        Core:
+        <select id="core">
+          <option value="fceumm">NES - fceumm</option>
+          <option value="nestopia">NES - nestopia</option>
+          <option value="snes9x">SNES - snes9x</option>
+          <option value="gambatte">GB - gambatte</option>
+          <option value="mgba">GBA - mgba</option>
+          <option value="beetle_vb">VB - beetle_vb</option>
+          <option value="melonds">NDS - melonDS</option>
+          <option value="desmume2015">NDS - desmume2015</option>
+          <option value="desmume">NDS - desmume</option>
+          <option value="a5200">Atari 5200 - a5200</option>
+          <option value="mame2003_plus">Arcade - mame2003_plus</option>
+          <option value="mame2003">Arcade - mame2003</option>
+          <option value="fbneo">Arcade - FBNeo</option>
+          <option value="fbalpha2012_cps1">Arcade - CPS1</option>
+          <option value="fbalpha2012_cps2">Arcade - CPS2</option>
+          <option value="pcsx_rearmed">PSX - PCSX Rearmed</option>
+          <option value="mednafen_psx_hw">PSX - Mednafen HW</option>
+          <option value="virtualjaguar">Jaguar - Virtual Jaguar</option>
+          <option value="handy">Lynx - Handy</option>
+          <option value="yabause">Sega Saturn - Yabause</option>
+          <option value="genesis_plus_gx">Sega MD/GG/CD - Genesis Plus GX</option>
+          <option value="mupen64plus_next">N64 - Mupen64Plus Next</option>
+          <option value="parallel-n64">N64 - Parallel N64</option>
+          <option value="opera">3DO - Opera</option>
+          <option value="prosystem">Atari 7800 - ProSystem</option>
+          <option value="stella2014">Atari 2600 - Stella2014</option>
+          <option value="picodrive">Sega 32X - PicoDrive</option>
+          <option value="smsplus">Sega Master System - SMSPlus</option>
+          <option value="vice_x64sc">C64 - VICE x64sc</option>
+          <option value="vice_x128">C128 - VICE x128</option>
+          <option value="vice_xpet">PET - VICE xPET</option>
+          <option value="vice_xplus4">Plus/4 - VICE xPlus4</option>
+          <option value="vice_xvic">VIC-20 - VICE xVIC</option>
+          <option value="puae">Amiga - PUAE</option>
+          <option value="gearcoleco">Coleco - GearColeco</option>
+          <option value="mednafen_pce">PC Engine - Mednafen PCE</option>
+          <option value="mednafen_pcfx">PC-FX - Mednafen PCFX</option>
+          <option value="mednafen_ngp">Neo Geo Pocket - Mednafen NGP</option>
+          <option value="mednafen_wswan">WonderSwan - Mednafen WS</option>
+          <option value="ppsspp">PSP - PPSSPP</option>
+        </select>
+      </label>
+
+      <label>
+        Accent Color:
+        <input type="color" id="color" value="#20b2aa">
+      </label>
+
+      <label>
+        ROM File:
+        <input type="file" id="romFile" accept=".nes,.sfc,.smc,.gba,.gb,.gen,.bin,.n64,.z64,.iso,.img,.zip,.7z">
+      </label>
+    </div>
+
+    <div id="game"></div>
+
+    <script>
+      const coreSelector = document.getElementById("core");
+      const colorInput = document.getElementById("color");
+      const fileInput = document.getElementById("romFile");
+      const gameDiv = document.getElementById("game");
+
+      function getBaseFilename(filename) {
+        return filename.substring(0, filename.lastIndexOf(".")) || filename;
+      }
+
+      function getCoreByExtension(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    nes: "fceumm",
+    smc: "snes9x",
+    sfc: "snes9x",
+    gb: "gambatte",
+    gbc: "gambatte",
+    gba: "mgba",
+    vb: "beetle_vb",
+    nds: "melonds",
+    n64: "mupen64plus_next",
+    z64: "mupen64plus_next",
+    v64: "mupen64plus_next",
+    iso: "pcsx_rearmed",
+    img: "pcsx_rearmed",
+    bin: "genesis_plus_gx", // may also be PSX or Sega CD, ambiguous
+    gen: "genesis_plus_gx",
+    md: "genesis_plus_gx",
+    sms: "smsplus",
+    gg: "genesis_plus_gx",
+    pce: "mednafen_pce",
+    cue: "mednafen_psx_hw",
+    cso: "ppsspp",
+    pbp: "ppsspp",
+    zip: null, // too ambiguous, leave for user
+    '7z': null,
+  };
+  return map[ext] || null;
+}
+
+function loadROM(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const romData = e.target.result;
+    const blob = new Blob([romData]);
+    const gameUrl = URL.createObjectURL(blob);
+    const baseName = getBaseFilename(file.name);
+
+    const autoCore = getCoreByExtension(file.name);
+    const selectedCore = autoCore || coreSelector.value;
+
+    // Set EmulatorJS config
+    EJS_player = "#game";
+    EJS_core = selectedCore;
+    EJS_color = colorInput.value || "#20b2aa";
+    EJS_startOnLoaded = true;
+    EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
+    EJS_gameUrl = gameUrl;
+    EJS_gameName = baseName;
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.emulatorjs.org/stable/data/loader.js";
+    document.body.appendChild(script);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+      // File input
+      fileInput.addEventListener("change", () => loadROM(fileInput.files[0]));
+
+      // Drag-and-drop support
+      document.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        gameDiv.classList.add("drag-over");
+      });
+
+      document.addEventListener("dragleave", (e) => {
+        gameDiv.classList.remove("drag-over");
+      });
+
+      document.addEventListener("drop", (e) => {
+        e.preventDefault();
+        gameDiv.classList.remove("drag-over");
+
+        const file = e.dataTransfer.files[0];
+        loadROM(file);
+      });
+    </script>
+  </body>
+</html>
