@@ -83,7 +83,7 @@
 
       <label>
         ROM File:
-        <input type="file" id="romFile" accept=".nes,.sfc,.smc,.gba,.gb,.gen,.bin,.n64,.z64,.iso,.img,.zip,.7z">
+        <input type="file" id="romFile" accept=".nes,.smc,.sfc,.gb,.gbc,.gba,.cgb,.vb,.nds,.n64,.z64,.v64,.iso,.img,.bin,.a52,.a78,.a26,.gen,.md,.sms,.gg,.pce,.cue,.cso,.pbp,.zip,.7z" />
       </label>
     </div>
 
@@ -105,9 +105,10 @@
     nes: "fceumm",
     smc: "snes9x",
     sfc: "snes9x",
-    gb: "gambatte",
-    gbc: "gambatte",
+    gb: "mgba",
+    gbc: "mgba",
     gba: "mgba",
+    cgb: "mgba"
     vb: "beetle_vb",
     nds: "melonds",
     n64: "mupen64plus_next",
@@ -115,7 +116,10 @@
     v64: "mupen64plus_next",
     iso: "pcsx_rearmed",
     img: "pcsx_rearmed",
-    bin: "genesis_plus_gx", // may also be PSX or Sega CD, ambiguous
+    bin: null, // too ambiguous, leave for user
+    a52: "a5200",
+    a78: "prosystem",
+    a26: "stella2014",
     gen: "genesis_plus_gx",
     md: "genesis_plus_gx",
     sms: "smsplus",
@@ -125,7 +129,7 @@
     cso: "ppsspp",
     pbp: "ppsspp",
     zip: null, // too ambiguous, leave for user
-    '7z': null,
+    '7z': null, // too ambiguous, leave for user
   };
   return map[ext] || null;
 }
