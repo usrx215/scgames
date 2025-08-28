@@ -1,179 +1,262 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze Game</title>
-    <link rel="icon" type="image/x-icon" href="scgamesicon.png">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: darkgrey;
-        }
-        #game-container {
-            display: grid;
-            grid-template-columns: repeat(10, 40px);
-            grid-template-rows: repeat(10, 40px);
-            gap: 2px;
-        }
-        .cell {
-            width: 40px;
-            height: 40px;
-            background-color: darkgrey;
-            border: 1px solid #ccc;
-        }
-        .wall {
-            background-color: black;
-        }
-        .start {
-            background-color: green;
-        }
-        .end {
-            background-color: red;
-        }
-        .player {
-            background-color: blue;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Perfect Maze — Always Solvable</title>
+  <link rel="icon" type="image/x-icon" href="https://usrx215.github.io/scgames/mazegame.png">
+  <style>
+    :root { --bg:#0b0e14; --panel:#11151f; --ink:#e6e6e6; --muted:#9aa4b2; --accent:#6ee7ff; --accent2:#a7f3d0; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Ubuntu, Cantarell, Roboto, "Noto Sans", Arial, sans-serif; background:var(--bg); color:var(--ink); display:grid; min-height:100svh; grid-template-rows:auto 1fr; }
+    header { padding:12px 16px; background:linear-gradient(180deg, #0f1422, #0b0e14); border-bottom:1px solid #1d2433; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    header h1 { font-size:16px; margin:0; letter-spacing:0.3px; font-weight:700; }
+    .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .controls label { font-size:12px; color:var(--muted); }
+    .controls input[type="number"]{ width:72px; }
+    .controls input, .controls button { background:#0f1422; color:var(--ink); border:1px solid #263046; border-radius:10px; padding:6px 10px; font-size:12px; }
+    .controls button { cursor:pointer; transition: transform .05s ease; }
+    .controls button:active { transform: translateY(1px); }
+    .controls .hint { color:var(--muted); font-size:12px; margin-left:6px; }
+    main { display:grid; place-items:center; padding:12px; }
+    canvas { background:#05070c; border-radius:16px; box-shadow: 0 10px 40px #00000066, inset 0 0 0 1px #1d2433; image-rendering: pixelated; }
+    footer { text-align:center; color:var(--muted); font-size:12px; padding:8px 0 12px; }
+    .kbd { padding:1px 6px; border:1px solid #32415f; border-bottom-width:2px; border-radius:6px; background:#0f1422; color:#c9d2e1; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; }
+  </style>
 </head>
 <body>
-    <div id="game-container"></div>
+  <header>
+    <h1>Maze Game v2</h1>
+    <div class="controls">
+      <label>Width (cells)
+        <input id="w" type="number" min="5" step="2" value="32" />
+      </label>
+      <label>Height (cells)
+        <input id="h" type="number" min="5" step="2" value="32" />
+      </label>
+      <label>Cell px
+        <input id="cell" type="number" min="4" max="32" value="20" />
+      </label>
+      <label>Seed
+        <input id="seed" type="text" placeholder="random" />
+      </label>
+      <label><input id="showPath" type="checkbox" /> Show solution</label>
+      <button id="regen">Regenerate</button>
+      <button id="reset">Reset Player</button>
+      <span class="hint">Controls: <span class="kbd">WASD</span>/<span class="kbd">↑←↓→</span>, <span class="kbd">R</span> regen</span>
+    </div>
+  </header>
+  <main>
+    <canvas id="maze"></canvas>
+  </main>
 
-    <script>
-        const gameContainer = document.getElementById("game-container");
+  <script>
+    // --- Utilities: PRNG with seed (Mulberry32) ---
+    function xmur3(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19;} return ()=>{h=Math.imul(h^h>>>16,2246822507); h=Math.imul(h^h>>>13,3266489909); return (h^h>>>16)>>>0;}; }
+    function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
+    function makeRng(seedStr){ if(!seedStr) return Math.random; const seedFn=xmur3(seedStr); return mulberry32(seedFn()); }
 
-        const mazes = [
-            [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-                [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-                [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
-                [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-                [1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-                [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-                [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            ],
-            [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 0, 0, 1, 1, 0, 1, 0, 1],
-                [1, 0, 1, 1, 0, 1, 0, 1, 0, 1],
-                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
-                [1, 0, 0, 0, 0, 1, 1, 1, 0, 1],
-                [1, 1, 0, 1, 0, 0, 0, 1, 0, 1],
-                [1, 0, 0, 0, 1, 1, 0, 1, 0, 1],
-                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            ],
-            [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 0, 0, 0, 1, 0, 1, 1, 1, 1],
-                [1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-                [1, 1, 1, 1, 0, 0, 1, 0, 1, 1],
-                [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-                [1, 0, 1, 1, 1, 0, 0, 0, 0, 1],
-                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            ],
-            [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                [1, 1, 0, 0, 1, 1, 1, 1, 0, 1],
-                [1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
-                [1, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                [1, 0, 1, 1, 0, 0, 1, 1, 1, 1],
-                [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-                [1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
-                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            ],
-            [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 0, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 0, 0, 1],
-                [1, 0, 1, 1, 1, 0, 1, 0, 1, 1],
-                [1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-                [1, 0, 1, 1, 1, 0, 1, 0, 0, 1],
-                [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            ]
-        ];
+    // Grid helpers: We use odd coordinates as "air" cells, even coordinates as walls.
+    // This produces a classic perfect maze where all air spaces are connected and solvable.
 
-        let currentLevel = 0;
-        let playerPosition = { x: 1, y: 1 };
+    const canvas = document.getElementById('maze');
+    const ctx = canvas.getContext('2d');
 
-        function createMaze() {
-            gameContainer.innerHTML = "";
-            const maze = mazes[currentLevel];
-            maze.forEach((row, y) => {
-                row.forEach((cell, x) => {
-                    const div = document.createElement("div");
-                    div.classList.add("cell");
+    let grid, W, H, CELL, rng, player, goal;
 
-                    if (cell === 1) div.classList.add("wall");
-                    if (x === 1 && y === 1) div.classList.add("start");
-                    if (x === 8 && y === 8) div.classList.add("end");
-                    if (x === playerPosition.x && y === playerPosition.y) div.classList.add("player");
+    function initGrid(widthCells, heightCells){
+      // Force odd dimensions to maintain the wall/cell pattern.
+      W = widthCells|0; H = heightCells|0; if(W%2===0) W++; if(H%2===0) H++;
+      grid = Array.from({length:H}, (_,y)=>Array.from({length:W},(_,x)=>1)); // 1=wall, 0=air
+      // Frame walls remain 1; we'll carve internal passages with randomized DFS.
+    }
 
-                    gameContainer.appendChild(div);
-                });
-            });
+    function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(rng()* (i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+    function carveMaze(){
+      // Start at (1,1), carve passages by DFS jumping 2 cells at a time, knocking down walls between.
+      const stack = [[1,1]]; grid[1][1]=0;
+      while(stack.length){
+        const [cx,cy] = stack[stack.length-1];
+        // candidates: N S E W two steps away within bounds, still walls (unvisited cells)
+        const dirs = shuffle([[0,-2],[0,2],[2,0],[-2,0]]);
+        let carved = false;
+        for(const [dx,dy] of dirs){
+          const nx=cx+dx, ny=cy+dy;
+          if(ny>0 && ny<H-1 && nx>0 && nx<W-1 && grid[ny][nx]===1){
+            // Knock down the wall between (cx,cy) and (nx,ny)
+            grid[cy+dy/2][cx+dx/2]=0; // middle wall
+            grid[ny][nx]=0;           // new cell
+            stack.push([nx,ny]);
+            carved = true;
+            break;
+          }
         }
+        if(!carved) stack.pop();
+      }
+      // Select start/goal on opposite edges of the carved region for nice paths
+      player = {x:1, y:1};
+      goal = farthestFrom(player);
+      // Optionally, place player at farthest from goal, to maximize path length
+      player = farthestFrom(goal);
+    }
 
-        function movePlayer(dx, dy) {
-            const maze = mazes[currentLevel];
-            const newX = playerPosition.x + dx;
-            const newY = playerPosition.y + dy;
-
-            if (maze[newY] && maze[newY][newX] === 0) {
-                playerPosition.x = newX;
-                playerPosition.y = newY;
-
-                createMaze();
-
-                if (newX === 8 && newY === 8) {
-                    setTimeout(() => {
-                        alert("You Win! Moving to next level.");
-                        currentLevel++;
-                        if (currentLevel < mazes.length) {
-                            playerPosition = { x: 1, y: 1 };
-                            createMaze();
-                        } else {
-                            alert("Congratulations! You've completed all levels.");
-                        }
-                    }, 10);
-                }
-            }
+    function farthestFrom(start){
+      const dist = bfsDistances(start.x, start.y);
+      let max= -1, pos=start;
+      for(let y=1;y<H;y+=2){
+        for(let x=1;x<W;x+=2){
+          if(dist[y][x]!==Infinity && dist[y][x]>max){ max=dist[y][x]; pos={x,y}; }
         }
+      }
+      return pos;
+    }
 
-        document.addEventListener("keydown", (e) => {
-            switch (e.key) {
-                case "ArrowUp":
-                    movePlayer(0, -1);
-                    break;
-                case "ArrowDown":
-                    movePlayer(0, 1);
-                    break;
-                case "ArrowLeft":
-                    movePlayer(-1, 0);
-                    break;
-                case "ArrowRight":
-                    movePlayer(1, 0);
-                    break;
-            }
-        });
+    function bfsDistances(sx,sy){
+      const dist = Array.from({length:H},()=>Array(W).fill(Infinity));
+      const q=[[sx,sy]]; dist[sy][sx]=0;
+      const moves=[[1,0],[-1,0],[0,1],[0,-1]];
+      while(q.length){
+        const [x,y]=q.shift();
+        for(const [dx,dy] of moves){
+          const nx=x+dx, ny=y+dy;
+          if(nx>=0&&nx<W&&ny>=0&&ny<H && grid[ny][nx]===0 && dist[ny][nx]===Infinity){
+            dist[ny][nx]=dist[y][x]+1; q.push([nx,ny]);
+          }
+        }
+      }
+      return dist;
+    }
 
-        createMaze();
-    </script>
+    function shortestPath(from, to){
+      // Reconstruct one shortest path via BFS parents
+      const dist=bfsDistances(from.x, from.y);
+      if(dist[to.y][to.x]===Infinity) return [];
+      const path=[[to.x,to.y]];
+      const moves=[[1,0],[-1,0],[0,1],[0,-1]];
+      let [x,y]=[to.x,to.y];
+      while(x!==from.x || y!==from.y){
+        let best=null, bestd=Infinity;
+        for(const [dx,dy] of moves){
+          const nx=x+dx, ny=y+dy;
+          if(nx>=0&&nx<W&&ny>=0&&ny<H && dist[ny][nx] < bestd){
+            bestd=dist[ny][nx]; best=[nx,ny];
+          }
+        }
+        if(!best) break; // should not happen in perfect maze
+        [x,y]=best; path.push([x,y]);
+      }
+      return path.reverse();
+    }
+
+    function draw(){
+      const pad=8; canvas.width = W*CELL + pad*2; canvas.height = H*CELL + pad*2;
+      ctx.fillStyle = '#03060b'; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+      // Draw maze
+      for(let y=0;y<H;y++){
+        for(let x=0;x<W;x++){
+          const px = pad + x*CELL, py = pad + y*CELL;
+          if(grid[y][x]===1){
+            // walls next to air by construction; render them slightly glossy
+            ctx.fillStyle = '#101826';
+            ctx.fillRect(px,py,CELL,CELL);
+            ctx.fillStyle = 'rgba(255,255,255,0.04)';
+            ctx.fillRect(px,py, CELL, Math.max(1, CELL*0.15));
+          } else {
+            ctx.fillStyle = '#0c1220';
+            ctx.fillRect(px,py,CELL,CELL);
+          }
+        }
+      }
+
+      // Draw solution path if toggled
+      if(document.getElementById('showPath').checked){
+        const path = shortestPath(player, goal);
+        ctx.globalAlpha = 0.9;
+        for(const [x,y] of path){
+          const px = pad + x*CELL, py = pad + y*CELL;
+          ctx.fillStyle = '#6ee7ff';
+          ctx.fillRect(px+CELL*0.25, py+CELL*0.25, CELL*0.5, CELL*0.5);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Draw goal
+      ;{
+        const gx = pad + goal.x*CELL, gy = pad + goal.y*CELL;
+        ctx.fillStyle = '#a7f3d0';
+        ctx.beginPath();
+        ctx.roundRect(gx+CELL*0.15, gy+CELL*0.15, CELL*0.7, CELL*0.7, 4);
+        ctx.fill();
+      }
+
+      // Draw player
+      const px = pad + player.x*CELL, py = pad + player.y*CELL;
+      ctx.fillStyle = '#e5e7eb';
+      ctx.beginPath();
+      ctx.roundRect(px+CELL*0.2, py+CELL*0.2, CELL*0.6, CELL*0.6, 4);
+      ctx.fill();
+    }
+
+    function regenerate(){
+      const w = Math.max(5, parseInt(document.getElementById('w').value,10)||31);
+      const h = Math.max(5, parseInt(document.getElementById('h').value,10)||31);
+      CELL = Math.max(4, Math.min(32, parseInt(document.getElementById('cell').value,10)||16));
+      const seedStr = document.getElementById('seed').value.trim();
+      rng = makeRng(seedStr || null);
+      initGrid(w, h);
+      carveMaze();
+      draw();
+    }
+
+    function tryMove(dx,dy){
+      const nx = player.x + dx; const ny = player.y + dy;
+      if(nx<0||ny<0||nx>=W||ny>=H) return; // out of bounds
+      if(grid[ny][nx]===0){ player.x=nx; player.y=ny; draw(); checkWin(); }
+    }
+
+    function checkWin(){
+      if(player.x===goal.x && player.y===goal.y){
+        flashWin();
+      }
+    }
+
+    function flashWin(){
+      // Simple celebratory pulse
+      let t=0, id=null;
+      function step(){
+        t+=0.05; draw();
+        const pad=8; const x = 8 + player.x*CELL + CELL/2; const y=8 + player.y*CELL + CELL/2;
+        ctx.save(); ctx.translate(x,y); ctx.globalAlpha = Math.max(0, 1.2 - t);
+        ctx.beginPath(); ctx.arc(0,0, Math.max(0,CELL*1.2*t), 0, Math.PI*2);
+        ctx.strokeStyle = '#6ee7ff'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+        if(t<1.2) id=requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    // Input
+    window.addEventListener('keydown', (e)=>{
+      const k=e.key.toLowerCase();
+      if(k==='arrowup' || k==='w') tryMove(0,-1);
+      else if(k==='arrowdown' || k==='s') tryMove(0,1);
+      else if(k==='arrowleft' || k==='a') tryMove(-1,0);
+      else if(k==='arrowright' || k==='d') tryMove(1,0);
+      else if(k==='r'){ regenerate(); }
+    });
+
+    document.getElementById('regen').addEventListener('click', regenerate);
+    document.getElementById('reset').addEventListener('click', ()=>{ player=farthestFrom(goal); draw(); });
+    document.getElementById('showPath').addEventListener('change', draw);
+
+    // Kick off
+    (function start(){
+      document.getElementById('w').value = 31;
+      document.getElementById('h').value = 31;
+      document.getElementById('cell').value = 16;
+      regenerate();
+    })();
+  </script>
 </body>
 </html>
